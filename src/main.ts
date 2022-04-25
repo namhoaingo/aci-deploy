@@ -1,36 +1,21 @@
+import { ContainerInstanceManagementClient, ContainerGroup, ResourceRequirements, Port } from "@azure/arm-containerinstance";
+import { DefaultAzureCredential } from "@azure/identity";
+// For client-side applications running in the browser, use InteractiveBrowserCredential instead of DefaultAzureCredential. See https://aka.ms/azsdk/js/identity/examples for more details.
 import * as core from '@actions/core';
-import * as crypto from "crypto";
 
-import { AuthorizerFactory } from "azure-actions-webclient/AuthorizerFactory";
-import { IAuthorizer } from "azure-actions-webclient/Authorizer/IAuthorizer";
-import { async } from 'q';
-import { ContainerInstanceManagementClient, ContainerInstanceManagementModels, ContainerInstanceManagementMappers } from "@azure/arm-containerinstance";
-import { TokenCredentials, ServiceClientCredentials } from "@azure/ms-rest-js";
-
+// Set these as env variable
+//AZURE_CLIENT_ID, AZURE_TENANT_ID, AZURE_CLIENT_SECRET.
+const subscriptionId = core.getInput("SubcriptionId");
+const client = new ContainerInstanceManagementClient(new DefaultAzureCredential(), subscriptionId);
 import { TaskParameters } from "./taskparameters";
-
-
 var prefix = !!process.env.AZURE_HTTP_USER_AGENT ? `${process.env.AZURE_HTTP_USER_AGENT}` : "";
 
 async function main() {
-
     try {
-        // Set user agent variable
-        let usrAgentRepo = crypto.createHash('sha256').update(`${process.env.GITHUB_REPOSITORY}`).digest('hex');
-        let actionName = 'DeployAzureContainerInstance';
-        let userAgentString = (!!prefix ? `${prefix}+` : '') + `GITHUBACTIONS_${actionName}_${usrAgentRepo}`;
-        core.exportVariable('AZURE_HTTP_USER_AGENT', userAgentString);
-
-        let endpoint: IAuthorizer = await AuthorizerFactory.getAuthorizer();
-        var taskParams = TaskParameters.getTaskParams(endpoint);
-        let bearerToken = await endpoint.getToken();
-        let creds: ServiceClientCredentials = new TokenCredentials(bearerToken);
-
-        core.debug("Predeployment Steps Started");
-        const client = new ContainerInstanceManagementClient(creds, taskParams.subscriptionId);
-
+        // deployment 
+        var taskParams = TaskParameters.getTaskParams();
         core.debug("Deployment Step Started");
-        let containerGroupInstance: ContainerInstanceManagementModels.ContainerGroup = {
+        let containerGroupInstance: ContainerGroup = {
             "location": taskParams.location,
             "containers": [
                 {
@@ -43,7 +28,7 @@ async function main() {
                     "volumeMounts": taskParams.volumeMounts
                 }
             ],
-            "imageRegistryCredentials": taskParams.registryUsername ? [ { "server": taskParams.registryLoginServer, "username": taskParams.registryUsername, "password": taskParams.registryPassword } ] : [],
+            "imageRegistryCredentials": taskParams.registryUsername ? [{ "server": taskParams.registryLoginServer, "username": taskParams.registryUsername, "password": taskParams.registryPassword }] : [],
             "ipAddress": {
                 "ports": getPorts(taskParams),
                 "type": taskParams.ipAddress,
@@ -54,61 +39,66 @@ async function main() {
             "osType": taskParams.osType,
             "restartPolicy": taskParams.restartPolicy,
             "type": "Microsoft.ContainerInstance/containerGroups",
-            "name": taskParams.containerName
+            "name": taskParams.containerName,
+            "subnetIds": [
+                {
+                    "id": taskParams.vnetContainerGroupSubnetId,
+                    "name": taskParams.vnetContainerGroupSubnetName
+                }
+            ]
         }
-        let containerDeploymentResult = await client.containerGroups.createOrUpdate(taskParams.resourceGroup, taskParams.containerName, containerGroupInstance);
-        if(containerDeploymentResult.provisioningState == "Succeeded") {
+        let containerDeploymentResult = await client.containerGroups.beginCreateOrUpdateAndWait(taskParams.resourceGroup, taskParams.containerName, containerGroupInstance);
+        if (containerDeploymentResult.provisioningState == "Succeeded") {
             console.log("Deployment Succeeded.");
             let appUrlWithoutPort = containerDeploymentResult.ipAddress?.fqdn;
             let port = taskParams.ports[0].port;
-            let appUrl = "http://"+appUrlWithoutPort+":"+port.toString()+"/"
+            let appUrl = "http://" + appUrlWithoutPort + ":" + port.toString() + "/"
             core.setOutput("app-url", appUrl);
-            console.log("Your App has been deployed at: "+appUrl);
+            console.log("Your App has been deployed at: " + appUrl);
         } else {
-            core.debug("Deployment Result: "+containerDeploymentResult);
-            throw Error("Container Deployment Failed"+containerDeploymentResult);
+            core.debug("Deployment Result: " + containerDeploymentResult);
+            throw Error("Container Deployment Failed" + containerDeploymentResult);
         }
     }
     catch (error) {
         core.debug("Deployment Failed with Error: " + error);
-        core.setFailed(error);
+        core.setFailed("error");
     }
-    finally{
+    finally {
         // Reset AZURE_HTTP_USER_AGENT
         core.exportVariable('AZURE_HTTP_USER_AGENT', prefix);
     }
-}
 
-function getResources(taskParams: TaskParameters): ContainerInstanceManagementModels.ResourceRequirements {
-    if (taskParams.gpuCount) {
-        let resRequirements: ContainerInstanceManagementModels.ResourceRequirements = {
-            "requests": {
-                "cpu": taskParams.cpu,
-                "memoryInGB": taskParams.memory,
-                "gpu": {
-                    "count": taskParams.gpuCount,
-                    "sku": taskParams.gpuSku
+    function getResources(taskParams: TaskParameters): ResourceRequirements {
+        if (taskParams.gpuCount) {
+            let resRequirements: ResourceRequirements = {
+                "requests": {
+                    "cpu": taskParams.cpu,
+                    "memoryInGB": taskParams.memory,
+                    "gpu": {
+                        "count": taskParams.gpuCount,
+                        "sku": taskParams.gpuSku
+                    }
                 }
             }
-        }
-        return resRequirements;
-    } else {
-        let resRequirements: ContainerInstanceManagementModels.ResourceRequirements = {
-            "requests": {
-                "cpu": taskParams.cpu,
-                "memoryInGB": taskParams.memory
+            return resRequirements;
+        } else {
+            let resRequirements: ResourceRequirements = {
+                "requests": {
+                    "cpu": taskParams.cpu,
+                    "memoryInGB": taskParams.memory
+                }
             }
+            return resRequirements;
         }
-        return resRequirements;
+    }
+
+    function getPorts(taskParams: TaskParameters): Array<Port> {
+        let ports = taskParams.ports;
+        ports.forEach((port) => {
+            port.protocol = taskParams.protocol;
+        });
+        return ports;
     }
 }
-
-function getPorts(taskParams: TaskParameters): Array<ContainerInstanceManagementModels.Port> {
-    let ports = taskParams.ports;
-    ports.forEach((port) => {
-        port.protocol = taskParams.protocol;
-    });
-    return ports;
-}
-
 main();

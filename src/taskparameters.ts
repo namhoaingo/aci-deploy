@@ -1,41 +1,39 @@
 import * as core from '@actions/core';
 
-import { IAuthorizer } from "azure-actions-webclient/Authorizer/IAuthorizer";
 
 import fs = require('fs');
-import { ContainerInstanceManagementModels } from '@azure/arm-containerinstance';
+            import  {ContainerGroupDiagnostics,EnvironmentVariable,GpuSku,ContainerGroupIpAddressType, OperatingSystemTypes, ContainerGroupNetworkProtocol, Port, ContainerGroupRestartPolicy, Volume, VolumeMount, LogAnalytics, LogAnalyticsLogType, GitRepoVolume, AzureFileVolume}  from '@azure/arm-containerinstance';
 
 export class TaskParameters {
     private static taskparams: TaskParameters;
-    private _endpoint: IAuthorizer;
     private _resourceGroup: string;
     private _commandLine: Array<string>;
     private _cpu: number;
-    private _diagnostics: ContainerInstanceManagementModels.ContainerGroupDiagnostics;
+    private _diagnostics: ContainerGroupDiagnostics;
     private _dnsNameLabel: string;
-    private _environmentVariables: Array<ContainerInstanceManagementModels.EnvironmentVariable>;
+    private _environmentVariables: Array<EnvironmentVariable>;
     private _gpuCount: number;
-    private _gpuSKU: ContainerInstanceManagementModels.GpuSku;
+    private _gpuSKU: GpuSku;
     private _image:string;
-    private _ipAddress:ContainerInstanceManagementModels.ContainerGroupIpAddressType;
+    private _ipAddress:ContainerGroupIpAddressType;
     private _location:string;
     private _memory: number;
     private _containerName: string;
-    private _osType: ContainerInstanceManagementModels.OperatingSystemTypes;
-    private _ports: Array<ContainerInstanceManagementModels.Port>;
-    private _protocol: ContainerInstanceManagementModels.ContainerGroupNetworkProtocol;
+    private _osType: OperatingSystemTypes;
+    private _ports: Array<Port>;
+    private _protocol: ContainerGroupNetworkProtocol;
     private _registryLoginServer: string;
     private _registryUsername: string;
     private _registryPassword: string;
-    private _restartPolicy: ContainerInstanceManagementModels.ContainerGroupRestartPolicy;
-    private _volumes: Array<ContainerInstanceManagementModels.Volume>;
-    private _volumeMounts: Array<ContainerInstanceManagementModels.VolumeMount>;
-    
+    private _restartPolicy: ContainerGroupRestartPolicy;
+    private _volumes: Array<Volume>;
+    private _volumeMounts: Array<VolumeMount>;
+    private _vnetContainerGroupSubnetId: string;
+    private _vnetContainerGroupSubnetName: string;
     private _subscriptionId: string;
 
-    private constructor(endpoint: IAuthorizer) {
-        this._endpoint = endpoint;
-        this._subscriptionId = endpoint.subscriptionID;
+    private constructor() {
+        this._subscriptionId = core.getInput('subcriptionId', { required: true })
         this._resourceGroup = core.getInput('resource-group', { required: true });
         this._commandLine = [];
         let commandLine = core.getInput("command-line");
@@ -116,6 +114,10 @@ export class TaskParameters {
         let afsAccountName = core.getInput('azure-file-volume-account-name');
         let afsShareName = core.getInput('azure-file-volume-share-name');
         this._getVolumes(gitRepoVolumeUrl, afsShareName, afsAccountName);
+        // Added Params
+        this._vnetContainerGroupSubnetId = core.getInput('vnetContainerGroupSubnetId');
+        this._vnetContainerGroupSubnetName = core.getInput('vnetContainerGroupSubnetName');
+        // End added param section
     }
 
     private _getDiagnostics(logAnalyticsWorkspace: string, logAnalyticsWorkspaceKey: string, logType: string) {
@@ -126,10 +128,10 @@ export class TaskParameters {
             if(logType && !['ContainerInsights', 'ContainerInstanceLogs'].includes(logType)) {
                 throw Error("Log Type Can be Only of Type `ContainerInsights` or `ContainerInstanceLogs`");
             }
-            let logAnalytics: ContainerInstanceManagementModels.LogAnalytics = { "workspaceId": logAnalyticsWorkspace, 
+            let logAnalytics: LogAnalytics = { "workspaceId": logAnalyticsWorkspace, 
                                                                                  "workspaceKey": logAnalyticsWorkspaceKey };
             if(logType) {
-                let logT: ContainerInstanceManagementModels.LogAnalyticsLogType;
+                let logT: LogAnalyticsLogType;
                 logT = (logType == 'ContainerInsights') ? 'ContainerInsights' : 'ContainerInstanceLogs';
                 logAnalytics.logType = logT;
             }
@@ -144,7 +146,7 @@ export class TaskParameters {
             keyValuePairs.forEach((pair: string) => {
                 // value is either wrapped in quotes or not
                 let pairList = pair.split(/=(?:"(.+)"|(.+))/);
-                let obj: ContainerInstanceManagementModels.EnvironmentVariable = { 
+                let obj: EnvironmentVariable = { 
                     "name": pairList[0], 
                     "value": pairList[1] || pairList[2]
                 };
@@ -157,7 +159,7 @@ export class TaskParameters {
             keyValuePairs.forEach((pair: string) => {
                 // value is either wrapped in quotes or not
                 let pairList = pair.split(/=(?:"(.+)"|(.+))/);
-                let obj: ContainerInstanceManagementModels.EnvironmentVariable = { 
+                let obj: EnvironmentVariable = { 
                     "name": pairList[0], 
                     "secureValue": pairList[1] || pairList[2]
                 };
@@ -167,7 +169,7 @@ export class TaskParameters {
     }
 
     private  _getPorts(ports: string) {
-        let portObjArr: Array<ContainerInstanceManagementModels.Port> = [];
+        let portObjArr: Array<Port> = [];
         ports.split(' ').forEach((portStr: string) => {
             let portInt = parseInt(portStr);
             portObjArr.push({ "port": portInt });
@@ -181,7 +183,7 @@ export class TaskParameters {
             let gitRepoDir = core.getInput('gitrepo-dir');
             let gitRepoMountPath = core.getInput('gitrepo-mount-path');
             let gitRepoRevision = core.getInput('gitrepo-revision');
-            let vol: ContainerInstanceManagementModels.GitRepoVolume = { "repository": gitRepoVolumeUrl };
+            let vol: GitRepoVolume = { "repository": gitRepoVolumeUrl };
             if(!gitRepoMountPath) {
                 throw Error("The Mount Path for GitHub Volume is not specified.");
             }
@@ -191,7 +193,7 @@ export class TaskParameters {
             if(gitRepoRevision) {
                 vol.revision = gitRepoRevision;
             }
-            let volMount: ContainerInstanceManagementModels.VolumeMount = { "name":"git-repo-vol", "mountPath":gitRepoMountPath };
+            let volMount: VolumeMount = { "name":"git-repo-vol", "mountPath":gitRepoMountPath };
             this._volumes.push({ "name": "git-repo-vol", gitRepo: vol });
             this._volumeMounts.push(volMount);
         }
@@ -203,11 +205,11 @@ export class TaskParameters {
             if(!afsMountPath) {
                 throw Error("The Mount Path for Azure File Share Volume is not specified");
             }
-            let vol: ContainerInstanceManagementModels.AzureFileVolume = { "shareName": afsShareName, "storageAccountName": afsAccountName };
+            let vol: AzureFileVolume = { "shareName": afsShareName, "storageAccountName": afsAccountName };
             if(afsAccountKey) {
                 vol.storageAccountKey = afsAccountKey;
             }
-            let volMount: ContainerInstanceManagementModels.VolumeMount = { "name": "azure-file-share-vol", "mountPath": afsMountPath };
+            let volMount: VolumeMount = { "name": "azure-file-share-vol", "mountPath": afsMountPath };
             if(afsReadOnly) {
                 if(!["true", "false"].includes(afsReadOnly)) {
                     throw Error("The Read-Only Flag can only be `true` or `false` for the Azure File Share Volume");
@@ -224,9 +226,9 @@ export class TaskParameters {
         } else {};
     }
 
-    public static getTaskParams(endpoint: IAuthorizer) {
+    public static getTaskParams() {
         if(!this.taskparams) {
-            this.taskparams = new TaskParameters(endpoint);
+            this.taskparams = new TaskParameters();
         }
         return this.taskparams;
     }
@@ -323,4 +325,11 @@ export class TaskParameters {
         return this._subscriptionId;
     }
 
+    public get vnetContainerGroupSubnetId(){
+        return this._vnetContainerGroupSubnetId;
+    }
+
+    public get vnetContainerGroupSubnetName(){
+        return this._vnetContainerGroupSubnetName;
+    }
 }
