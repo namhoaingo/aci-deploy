@@ -128,7 +128,6 @@ inputs:
     SubcriptionId:
         description: 'Subcription ID'
         default: ''
-
 outputs:
     app-url:
         description: 'URL of the Deployed Application'
