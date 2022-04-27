@@ -5,7 +5,7 @@ import * as core from '@actions/core';
 
 // Set these as env variable
 //AZURE_CLIENT_ID, AZURE_TENANT_ID, AZURE_CLIENT_SECRET.
-const subscriptionId = core.getInput("SubcriptionId");
+const subscriptionId = core.getInput("subcriptionid");
 const client = new ContainerInstanceManagementClient(new DefaultAzureCredential(), subscriptionId);
 import { TaskParameters } from "./taskparameters";
 var prefix = !!process.env.AZURE_HTTP_USER_AGENT ? `${process.env.AZURE_HTTP_USER_AGENT}` : "";
@@ -42,8 +42,8 @@ async function main() {
             "name": taskParams.containerName,
             "subnetIds": [
                 {
-                    "id": taskParams.vnetContainerGroupSubnetId,
-                    "name": taskParams.vnetContainerGroupSubnetName
+                    "id": taskParams.vnetcontainergroupsubnetid,
+                    "name": taskParams.vnetcontainergroupsubnetname
                 }
             ]
         }

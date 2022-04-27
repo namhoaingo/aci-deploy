@@ -28,12 +28,12 @@ export class TaskParameters {
     private _restartPolicy: ContainerGroupRestartPolicy;
     private _volumes: Array<Volume>;
     private _volumeMounts: Array<VolumeMount>;
-    private _vnetContainerGroupSubnetId: string;
-    private _vnetContainerGroupSubnetName: string;
+    private _vnetcontainergroupsubnetid: string;
+    private _vnetcontainergroupsubnetname: string;
     private _subscriptionId: string;
 
     private constructor() {
-        this._subscriptionId = core.getInput('subcriptionId', { required: true })
+        this._subscriptionId = core.getInput('subcriptionid', { required: true })
         this._resourceGroup = core.getInput('resource-group', { required: true });
         this._commandLine = [];
         let commandLine = core.getInput("command-line");
@@ -115,8 +115,8 @@ export class TaskParameters {
         let afsShareName = core.getInput('azure-file-volume-share-name');
         this._getVolumes(gitRepoVolumeUrl, afsShareName, afsAccountName);
         // Added Params
-        this._vnetContainerGroupSubnetId = core.getInput('vnetContainerGroupSubnetId');
-        this._vnetContainerGroupSubnetName = core.getInput('vnetContainerGroupSubnetName');
+        this._vnetcontainergroupsubnetid = core.getInput('vnetcontainergroupsubnetid');
+        this._vnetcontainergroupsubnetname = core.getInput('vnetcontainergroupsubnetname');
         // End added param section
     }
 
@@ -325,11 +325,11 @@ export class TaskParameters {
         return this._subscriptionId;
     }
 
-    public get vnetContainerGroupSubnetId(){
-        return this._vnetContainerGroupSubnetId;
+    public get vnetcontainergroupsubnetid(){
+        return this._vnetcontainergroupsubnetid;
     }
 
-    public get vnetContainerGroupSubnetName(){
-        return this._vnetContainerGroupSubnetName;
+    public get vnetcontainergroupsubnetname(){
+        return this._vnetcontainergroupsubnetname;
     }
 }
