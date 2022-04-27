@@ -119,6 +119,15 @@ inputs:
     secure-environment-variables:
         description: 'List of secure environment variables for the container. Space seperated values in "key=value" format'
         default: ''
+    vnetcontainergroupsubnetid:
+        description: 'Group Subnet ID'
+        default: ''
+    vnetcontainergroupsubnetname:
+        description: 'Group Subnet Name'
+        default: ''
+    subcriptionid:
+        description: 'Subcription ID'
+        default: ''
 outputs:
     app-url:
         description: 'URL of the Deployed Application'
