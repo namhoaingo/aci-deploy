@@ -61,8 +61,9 @@ async function main() {
         }
     }
     catch (error) {
+        const castError = error as Error;
         core.debug("Deployment Failed with Error: " + error);
-        core.setFailed("error");
+        core.setFailed(castError);
     }
     finally {
         // Reset AZURE_HTTP_USER_AGENT
