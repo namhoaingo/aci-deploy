@@ -29,11 +29,11 @@ async function main() {
                 }
             ],
             "imageRegistryCredentials": taskParams.registryUsername ? [{ "server": taskParams.registryLoginServer, "username": taskParams.registryUsername, "password": taskParams.registryPassword }] : [],
-            "ipAddress": {
-                "ports": getPorts(taskParams),
-                "type": taskParams.ipAddress,
-                "dnsNameLabel": taskParams.dnsNameLabel
-            },
+            // "ipAddress": {
+            //     "ports": getPorts(taskParams),
+            //     "type": taskParams.ipAddress,
+            //     "dnsNameLabel": taskParams.dnsNameLabel
+            // },
             "diagnostics": taskParams.diagnostics,
             "volumes": taskParams.volumes,
             "osType": taskParams.osType,
